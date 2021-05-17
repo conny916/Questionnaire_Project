@@ -1,13 +1,13 @@
 ## LOAD PACKAGES ####
 library(tidyverse)
-library(dplyr)
+library(dplyr, warn.conflicts = FALSE)
 library(readr)
 
 ## LOAD IN DATA ####
 #Combine csv files
 filescsv <- list.files(path = "data/", pattern = "questionnaires_.*csv", full.names = TRUE)
 filescsv
-df_list <- lapply(filescsv, read.csv, header = TRUE, sep = "\t", fileEncoding = "utf16")
+df_list <- lapply(filescsv, read.csv, header = TRUE, sep = "\t", fileEncoding = "utf16", stringsAsFactors=FALSE)
 data <- bind_rows(df_list)
 head(data)
 
@@ -97,15 +97,15 @@ mutate_at(vars(Comp_2), ~recode(., "0"=0,"1"=1,"2"=1,"3"=2,"4"=2,"5"=3,"6"=3))
 
 #Component 5 
 PSQI_update <- PSQI_update %>%
-  mutate_at(vars(PS07_02, PS07_03, PS07_04, PS07_05, PS07_06, PS07_07, PS07_08, PS07_09),
-            ~recode(., "1"=0,"2"=1,"3"=2,"4"=3, .default = NaN))
+  mutate_at(vars(PS07_02, PS07_03, PS07_04, PS07_05, PS07_06, PS07_07, PS07_08, PS07_09, PS09_01),
+            ~recode(., "1"=0,"2"=1,"3"=2,"4"=3,))
+PSQI_update$Comp_5 <- rowSums(PSQI_update[,c("PS07_02", "PS07_03", "PS07_04",
+                                             "PS07_05", "PS07_06", "PS07_07",
+                                             "PS07_08", "PS07_09", "PS09_01")])
 PSQI_update <- PSQI_update %>%
-  mutate_at(vars(PS09_01), ~recode(., "1"=0,"2"=1,"3"=2,"4"=3, .default = 0))
-PSQI_update$Comp_5 <- PSQI_update$PS07_02 + PSQI_update$PS07_03 + PSQI_update$PS07_04 +
-                     PSQI_update$PS07_05 + PSQI_update$PS07_06 + PSQI_update$PS07_07 +
-                     PSQI_update$PS07_08 + PSQI_update$PS07_09 + PSQI_update$PS09_01
-#PSQI_update <- PSQI_update %>%
-#mutate_at(vars(Comp_5), ~recode(., "0"=0,"1:9"=1,"10:18"=2,"19:30"=3, "NA"= "NA", .default = NaN))
+mutate_at(vars(Comp_5), ~recode(., "0"=0,"1"=1,"2"=1,"3"=1,"4"=1,"5"=1,"6"=1,"7"=1,"8"=1,"9"=1,
+                                   "10"=2,"11"=2,"12"=2,"13"=2,"14"=2,"15"=2,"16"=2,"17"=2,"18"=2,
+                                   "19"=3,"20"=3,"21"=3,"22"=3,"23"=3,"24"=3,"25"=3,"26"=3,"27"=3, .default = NaN))
 
 #Component 6
 PSQI_update <- PSQI_update %>%
@@ -119,7 +119,31 @@ PSQI_update$Comp_7 <- PSQI_update$PS12_01 + PSQI_update$PS13_01
 PSQI_update <- PSQI_update %>%
 mutate_at(vars(Comp_7), ~recode(., "0"=0,"1"=1,"2"=1,"3"=2,"4"=2,"5"=3,"6"=3))
 
-
+#Sum of PSQI
+#PSQI_update$sum_PQSI <- PSQI_update$Comp_1 + PSQI_update$Comp_2 + PSQI_update$Comp_3 + PSQI_update$Comp_4
+#                        PSQI_update$Comp_5 + PSQI_update$Comp_6 + PSQI_update$Comp_7
 write.csv(PSQI_update, "PSQI_update.csv")
 
 ## STAI Update ####
+PSQI_update$State_Angst <- 5 - PSQI_update$ST02_01 + 5 - PSQI_update$ST02_02 + PSQI_update$ST02_03 + PSQI_update$ST02_04 +
+                           5 - PSQI_update$ST02_05 + PSQI_update$ST02_06 + PSQI_update$ST02_07 + 5 - PSQI_update$ST02_08 +
+                           PSQI_update$ST02_09 + 5 - PSQI_update$ST02_10 + 5 - PSQI_update$ST02_11 + PSQI_update$ST02_12 +
+                           PSQI_update$ST02_13 + PSQI_update$ST02_14 + 5 - PSQI_update$ST02_15 + 5 - PSQI_update$ST02_16 +
+                           PSQI_update$ST02_17 + PSQI_update$ST02_18 + 5 - PSQI_update$ST02_19 + 5 - PSQI_update$ST02_20
+                           
+PSQI_update$Trait_Angst <- 5 - PSQI_update$ST04_01 + PSQI_update$ST04_02 + PSQI_update$ST04_03 + PSQI_update$ST04_04 +                            
+                           PSQI_update$ST04_05 + 5 - PSQI_update$ST04_06 + 5 - PSQI_update$ST04_07 + PSQI_update$ST04_08 + 
+                           PSQI_update$ST04_09 + 5 - PSQI_update$ST04_10 + PSQI_update$ST04_11 + PSQI_update$ST04_12 + 
+                           5 - PSQI_update$ST04_13 + PSQI_update$ST04_14 + PSQI_update$ST04_15 + 5 - PSQI_update$ST04_16 + 
+                           PSQI_update$ST04_17 + PSQI_update$ST04_18 + 5 - PSQI_update$ST04_19 + PSQI_update$ST04_20
+write.csv(PSQI_update, "STAI_update.csv")                       
+
+## Explicit knowledge ####
+PSQI_update$Schlafh <- PSQI_update$EK02_01
+PSQI_update$Schlaf_Qualität <- PSQI_update$EK03
+PSQI_update$Idee_Aufgabe <- PSQI_update$EK04
+PSQI_update$Überraschung <- PSQI_update$EK06
+write.csv(PSQI_update, "EK_update.csv")                           
+                           
+                           
+                           
