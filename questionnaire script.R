@@ -5,6 +5,7 @@ library(readr)
 library(readxl)
 library(zoo)
 library(data.table)
+library(chron)
 
 
 ## LOAD IN DATA ####
@@ -103,9 +104,24 @@ PSQI_update <- PSQI_update %>%
                                           "5"=2,"5.5"=2,"6"=1,"6.5"=1,"7"=0,"7.5"=0,"8"=0,"8.5"=0,"9"=0,"9.5"=0,
                                           "10"=0,"10.5"=0,"11"=0,"11.5"=0,"12"=0,"12.5"=0,"13"=0,"13.5"=0,"14"=0,
                                           "14.5"=0,"15"=0, .default = NaN))
-  
+#Hier müssen vorher die Variablen PS02_01 und PS04_01 in ALLEN Datensätzen umgeschrieben werden. Die Zeit muss im Format
+#HH:MM:SS angegeben werden.
 #Component 4
-#?
+PSQI_update$SleepTime <- as.POSIXct(PSQI_update$PS02_01, format = "%H:%M:%S")
+PSQI_update$WakeTime <- as.POSIXct(PSQI_update$PS04_01, format = "%H:%M:%S")
+PSQI_update$Timediff <- difftime(PSQI_update$WakeTime, PSQI_update$SleepTime, units = "hours")
+PSQI_update$Timediff <- as.numeric(PSQI_update$Timediff)
+PSQI_update$TimeinBed <- ifelse(PSQI_update$Timediff < 0, PSQI_update$Timediff + 24, PSQI_update$Timediff)
+PSQI_update$TimeinBed <- as.numeric(PSQI_update$TimeinBed)
+PSQI_update$PS05_01 <- as.numeric(PSQI_update$PS05_01)
+PSQI_update$Sleepefficiency <- ifelse(PSQI_update$TimeinBed == "NA", PSQI_update$TimeinBed, PSQI_update$PS05_01 / PSQI_update$TimeinBed * 100)
+PSQI_update$Sleepefficiency <- as.numeric(PSQI_update$Sleepefficiency)
+PSQI_update$PSQI_Comp_4 <- case_when((PSQI_update$Sleepefficiency >= 85)                                    ~ 0,
+                                      (PSQI_update$Sleepefficiency < 85) & (PSQI_update$Sleepefficiency >= 75)  ~ 1,
+                                      (PSQI_update$Sleepefficiency < 75) & (PSQI_update$Sleepefficiency >= 65)  ~ 2,
+                                      (PSQI_update$Sleepefficiency) < 65                                        ~ 3)
+PSQI_update <- PSQI_update %>%
+  select(-SleepTime, -WakeTime, -Timediff, -TimeinBed, -Sleepefficiency)
 
 #Component 5 
 PSQI_update$PS09_01 <- ifelse(PSQI_update$QUESTNNR == 'PRE_TAG_1' & is.na(PSQI_update$PS09_01), 1, PSQI_update$PS09_01)
@@ -133,8 +149,9 @@ PSQI_update <- PSQI_update %>%
 mutate_at(vars(PSQI_Comp_7), ~recode(., "0"=0,"1"=1,"2"=1,"3"=2,"4"=2,"5"=3,"6"=3))
 
 #Sum of PSQI
-#PSQI_update$PSQI_sum <- PSQI_update$Comp_1 + PSQI_update$Comp_2 + PSQI_update$Comp_3 + PSQI_update$Comp_4
-#                        PSQI_update$Comp_5 + PSQI_update$Comp_6 + PSQI_update$Comp_7
+PSQI_update$PSQI_sum <- rowSums(PSQI_update[,c("PSQI_Comp_1", "PSQI_Comp_2", "PSQI_Comp_3",
+                                                  "PSQI_Comp_4", "PSQI_Comp_5", "PSQI_Comp_6",
+                                                  "PSQI_Comp_7")])
 write.csv(PSQI_update, "PSQI_update.csv")
 
 ## STAI Update ####
@@ -179,7 +196,7 @@ VP_ID <- VP_ID %>%
   mutate_each(funs(na.locf(., na.rm = FALSE, fromLast = FALSE))) %>%
   filter(row_number()==n())
 final_set <- VP_ID %>%
-  select(-SERIAL, -PS03, -PS03_02, -PS03_03, -PS03_04)
+  select(-SERIAL, -PS03, -PS03_02, -PS03_03, -PS03_04, -PS05_01.1)
 write.csv(final_set, "final_data.csv")
 
 
